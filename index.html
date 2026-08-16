@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Card Ledger — Splinterlands sales history</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <style>.card-row{border:0;border-top:1px solid var(--line);background:none;color:inherit;text-align:left;width:100%;cursor:pointer}.card-row.selected{background:#202b26;margin:0 -10px;padding-left:10px;padding-right:10px;width:calc(100% + 20px)}.empty{color:#707b76;font-size:11px;padding:18px 0}</style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">✦</span><span>card<span class="muted">ledger</span></span></div>
+      <div class="side-label">Workspace</div>
+      <nav>
+        <button class="nav-item active"><span>◒</span> Market overview</button>
+        <button class="nav-item"><span>▦</span> Card explorer <b>01</b></button>
+        <button class="nav-item"><span>↗</span> Recent sales</button>
+      </nav>
+      <div class="side-label">Saved views</div>
+      <div class="saved-view"><span class="dot gold"></span> Gold foil cards</div>
+      <div class="saved-view"><span class="dot teal"></span> Untamed edition</div>
+      <div class="sidebar-bottom"><div class="live-dot"></div><div><strong>Data connected</strong><small>Local history cache</small></div></div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar"><div class="crumb">MARKET INTELLIGENCE <span>/</span> CARD HISTORY</div><div class="top-actions"><span class="updated">Updated 23 Jul 2026</span><button class="icon-button" title="Settings">⚙</button><div class="avatar">CW</div></div></header>
+      <section class="hero"><div><p class="eyebrow">All cards · rolling 4 weeks</p><h1>Sales, made <em>visible.</em></h1><p class="hero-copy">Explore four weeks of Splinterlands card sales, from the full catalog down to each individual card.</p></div><div class="hero-note"><span class="spark">↗</span><div><strong>Live market window</strong><small id="dataStatus">Loading card catalog and recent sales…</small></div></div></section>
+
+      <section class="toolbar"><label class="search"><span>⌕</span><input id="search" placeholder="Search cards, players or transaction IDs" autocomplete="off"></label><select id="foil"><option value="all">All foils</option><option value="regular">Regular</option><option value="gold">Gold</option></select><select id="period"><option value="all">All time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select><button class="filter-button">☷ Filters <span>0</span></button></section>
+
+      <section class="stats-grid">
+        <article class="stat-card"><div class="stat-label">Latest sale <span class="trend positive">↗ live</span></div><div class="stat-value" id="latest">—</div><div class="stat-foot" id="latestFoot">Waiting for data</div></article>
+        <article class="stat-card"><div class="stat-label">Median sale price</div><div class="stat-value" id="median">—</div><div class="stat-foot">Across <span id="saleCount">—</span> recorded sales</div></article>
+        <article class="stat-card"><div class="stat-label">Four-week volume</div><div class="stat-value" id="volume">—</div><div class="stat-foot">USD settled on-chain</div></article>
+        <article class="stat-card accent-card"><div class="stat-label">Cards with activity</div><div class="stat-value" id="activeCards">—</div><div class="stat-foot"><span class="mini-bar"><i></i></span> of <span id="catalogCount">—</span> catalog cards</div></article>
+      </section>
+
+      <section class="section-heading"><div><p class="eyebrow">Price discovery</p><h2 id="selectedCardTitle">Market activity <span>·</span> all cards</h2></div><div class="legend"><span><i class="legend-line"></i>Sale price</span><span><i class="legend-dot"></i>Median</span></div></section>
+      <section class="chart-card"><div class="chart-meta"><div><span class="chart-big" id="chartPrice">—</span><span class="trend positive">↗ rolling window</span><small id="chartSub">Select a card below to inspect its history</small></div><div class="chart-tools"><button class="range active">4W</button><button class="range">7D</button><button class="range">ALL</button></div></div><div class="chart-wrap"><svg id="chart" viewBox="0 0 900 270" preserveAspectRatio="none" role="img" aria-label="Card sale price chart"></svg><div class="chart-tooltip" id="tooltip"></div></div><div class="axis"><span id="axisStart">4 weeks ago</span><span>2 weeks ago</span><span>Today</span></div></section>
+
+      <section class="lower-grid"><div class="panel"><div class="panel-header"><div><p class="eyebrow">Card explorer</p><h2>Most active cards</h2></div><button class="text-button" id="clearSelection">View all ↗</button></div><div id="cardList"></div></div>
+        <div class="panel activity"><div class="panel-header"><div><p class="eyebrow">Latest movement</p><h2>Recent sales</h2></div><span class="pill" id="salesPill">— sales</span></div><div id="activityList"></div></div></section>
+      <footer><span>Card Ledger · Splinterlands market history</span><span>Source: local on-chain history cache · paid sales only</span></footer>
+    </main>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
