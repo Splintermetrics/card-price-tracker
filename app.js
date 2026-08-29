@@ -39,12 +39,26 @@ const state = {
   loading:false, spsBurned:null, packs:[], cards:[], packExpanded:false,
   snapshots:readStore(STORAGE.snapshots,[]), previous:null,
   runSheet:readStore(STORAGE.run,[]), notes:readStore(STORAGE.notes,{}), activeRunKey:null,
-  filters:{ search:'',set:'all',foil:'all',sort:'movers' }, presenterIndex:0, warnings:[],
+  filters:{ search:'',set:'all',foil:'all',sort:'movers' }, presenterIndex:0, warnings:[], historySource:'seed',
 };
-state.previous = state.snapshots.at(-1) || SEEDED_PREVIOUS;
+state.previous = chooseComparison([...state.snapshots, SEEDED_PREVIOUS]);
 
 function readStore(key,fallback){ try{const value=JSON.parse(localStorage.getItem(key));return value ?? fallback}catch{return fallback} }
 function writeStore(key,value){ try{localStorage.setItem(key,JSON.stringify(value))}catch{} }
+function chooseComparison(candidates){
+  const target=Date.now()-14*86400000,cutoff=Date.now()-3600000;
+  return candidates.filter(item=>Number.isFinite(item?.capturedAt)&&item.capturedAt<cutoff).sort((a,b)=>Math.abs(a.capturedAt-target)-Math.abs(b.capturedAt-target))[0]||SEEDED_PREVIOUS;
+}
+function expandSharedSnapshot(raw){
+  return {capturedAt:Number(raw.capturedAt),label:`Shared history · ${raw.date}`,spsBurned:Number.isFinite(raw.s)?raw.s:null,packs:Object.fromEntries(Object.entries(raw.p||{}).map(([key,value])=>[key,{price:Number(value[0]),supply:Number(value[1])}])),cards:Object.fromEntries(Object.entries(raw.c||{}).map(([key,value])=>[key,{price:Number(value[0]),supply:Number(value[1])}]))};
+}
+async function loadSharedHistory(){
+  try{
+    const index=await fetchJson('./data/index.json',8000);if(!Array.isArray(index)||!index.length)return;
+    const target=Date.now()-14*86400000;const date=[...index].sort((a,b)=>Math.abs(Date.parse(`${a}T12:00:00Z`)-target)-Math.abs(Date.parse(`${b}T12:00:00Z`)-target))[0];
+    const shared=expandSharedSnapshot(await fetchJson(`./data/snapshots/${date}.json`,8000));state.previous=chooseComparison([...state.snapshots,shared]);state.historySource=state.previous===shared?'shared':'local';
+  }catch{state.historySource=state.snapshots.length?'local':'seed'}
+}
 function esc(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]))}
 function number(value,digits=0){return Number.isFinite(value)?Number(value).toLocaleString('en-GB',{maximumFractionDigits:digits,minimumFractionDigits:digits}):'—'}
 function money(value){if(!Number.isFinite(value))return '—';const digits=value<.01?5:value<1?3:2;return `$${Number(value).toLocaleString('en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits})}`}
@@ -65,7 +79,7 @@ function normalizePacks(payload){
   return assets.filter(item=>item.assetName==='PACKS').map(item=>({
     id:String(item.detailId),name:item.detailName||item.detailId,group:item.detailGroup||'Other',
     price:Number(item.prices?.find(price=>price.currency==='USD')?.minPrice),
-    supply:Number(item.numCirculation),listed:Number(item.numListed),image:item.detailImage||'',
+    supply:Math.max(0,Number(item.numCirculation)),listed:Math.max(0,Number(item.numListed)),image:item.detailImage||'',
   })).filter(item=>Number.isFinite(item.price)||Number.isFinite(item.supply));
 }
 
@@ -87,7 +101,9 @@ async function loadSnapshot(){
   if(state.loading)return;state.loading=true;state.warnings=[];
   $('refreshSnapshot').disabled=true;$('refreshSnapshot').innerHTML='<span>↻</span> Refreshing…';
   $('dataState').className='data-state';$('dataState').querySelector('span').textContent='Refreshing official market sources…';
+  const historyPromise=loadSharedHistory();
   const results=await Promise.allSettled([fetchJson(ENDPOINTS.supply),fetchJson(ENDPOINTS.packs),fetchJson(ENDPOINTS.catalog,25000),fetchJson(ENDPOINTS.market,25000)]);
+  await historyPromise;
   if(results[0].status==='fulfilled')state.spsBurned=Number(results[0].value.burned);else state.warnings.push('SPS burn');
   if(results[1].status==='fulfilled'){const packs=normalizePacks(results[1].value);state.packs=packs.length?packs:FALLBACK_PACKS}else{state.packs=FALLBACK_PACKS;state.warnings.push('pack market')}
   if(results[2].status==='fulfilled'&&results[3].status==='fulfilled'){const cards=normalizeCards(results[2].value,results[3].value);state.cards=cards.length?cards:FALLBACK_CARDS}else{state.cards=FALLBACK_CARDS;state.warnings.push('card market')}
@@ -165,7 +181,7 @@ function renderRunSheet(){
 function renderStatus(){
   const live=state.warnings.length===0;$('dataState').className=`data-state ${live?'live':'partial'}`;$('dataState').querySelector('span').textContent=live?`Live snapshot · ${state.packs.length} packs · ${number(state.cards.length)} card groups`:`Live with fallback for ${state.warnings.join(' and ')}`;
   const notice=$('notice');if(state.warnings.length){notice.textContent=`Some sources did not respond, so saved preview data is shown for: ${state.warnings.join(', ')}. You can refresh again before recording.`;notice.classList.remove('hidden')}else notice.classList.add('hidden');
-  const last=state.snapshots.at(-1);$('saveState').textContent=last?`Last saved ${dateLabel(last.capturedAt)}`:'No episode saved yet';
+  const last=state.snapshots.at(-1);$('saveState').textContent=last?`Last saved ${dateLabel(last.capturedAt)}`:`History ${dateLabel(state.previous.capturedAt)}`;
 }
 
 function renderAll(){renderStatus();renderOpening();renderCardStats();renderFilters();renderCards();renderRunSheet();renderPresenter()}
