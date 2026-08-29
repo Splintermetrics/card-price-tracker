@@ -3,50 +3,118 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Card Ledger — Splinterlands sales history</title>
+  <meta name="theme-color" content="#080b0f">
+  <title>Market Watch Studio · Splinterlands</title>
+  <meta name="description" content="Prepare, compare and present a Splinterlands card market watch in minutes.">
+  <meta property="og:title" content="Market Watch Studio">
+  <meta property="og:description" content="Splinterlands market intelligence, ready to record.">
+  <meta property="og:image" content="https://splintermetrics.github.io/card-price-tracker/og.jpg">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://splintermetrics.github.io/card-price-tracker/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Market Watch Studio">
+  <meta name="twitter:description" content="Splinterlands market intelligence, ready to record.">
+  <meta name="twitter:image" content="https://splintermetrics.github.io/card-price-tracker/og.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
-  <style>.card-row{border:0;border-top:1px solid var(--line);background:none;color:inherit;text-align:left;width:100%;cursor:pointer}.card-row.selected{background:#202b26;margin:0 -10px;padding-left:10px;padding-right:10px;width:calc(100% + 20px)}.empty{color:#707b76;font-size:11px;padding:18px 0}</style>
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">✦</span><span>card<span class="muted">ledger</span></span></div>
-      <div class="side-label">Workspace</div>
-      <nav>
-        <button class="nav-item active"><span>◒</span> Market overview</button>
-        <button class="nav-item"><span>▦</span> Card explorer <b>01</b></button>
-        <button class="nav-item"><span>↗</span> Recent sales</button>
-      </nav>
-      <div class="side-label">Saved views</div>
-      <div class="saved-view"><span class="dot gold"></span> Gold foil cards</div>
-      <div class="saved-view"><span class="dot teal"></span> Untamed edition</div>
-      <div class="sidebar-bottom"><div class="live-dot"></div><div><strong>Data connected</strong><small>Local history cache</small></div></div>
-    </aside>
+  <header class="topbar">
+    <a class="brand" href="#top"><span class="brand-mark">MW</span><span>Market Watch <small>Studio</small></span></a>
+    <nav class="view-switch" aria-label="Workspace view">
+      <button class="active" type="button" data-view="producer">Producer</button>
+      <button type="button" data-view="presenter">Presenter</button>
+    </nav>
+    <div class="top-actions">
+      <span class="save-state" id="saveState">No episode saved yet</span>
+      <button class="ghost-button" id="saveSnapshot" type="button">Save episode</button>
+      <button class="primary-button" id="refreshSnapshot" type="button"><span>↻</span> Refresh snapshot</button>
+    </div>
+  </header>
 
-    <main class="content">
-      <header class="topbar"><div class="crumb">MARKET INTELLIGENCE <span>/</span> CARD HISTORY</div><div class="top-actions"><span class="updated">Updated 23 Jul 2026</span><button class="icon-button" title="Settings">⚙</button><div class="avatar">CW</div></div></header>
-      <section class="hero"><div><p class="eyebrow">All cards · rolling 4 weeks</p><h1>Sales, made <em>visible.</em></h1><p class="hero-copy">Explore four weeks of Splinterlands card sales, from the full catalog down to each individual card.</p></div><div class="hero-note"><span class="spark">↗</span><div><strong>Live market window</strong><small id="dataStatus">Loading card catalog and recent sales…</small></div></div></section>
+  <main class="shell producer-view" id="top">
+    <section class="intro">
+      <div>
+        <p class="eyebrow" id="episodeDate">Episode preparation</p>
+        <h1>Your market watch,<br><em>ready to record.</em></h1>
+      </div>
+      <div class="intro-side">
+        <p>Live figures, fortnightly movement and a clean running order—starting with SPS burn and packs, then moving into the card market.</p>
+        <div class="data-state" id="dataState"><i></i><span>Connecting to live sources…</span></div>
+      </div>
+    </section>
 
-      <section class="toolbar"><label class="search"><span>⌕</span><input id="search" placeholder="Search cards, players or transaction IDs" autocomplete="off"></label><select id="foil"><option value="all">All foils</option><option value="regular">Regular</option><option value="gold">Gold</option></select><select id="period"><option value="all">All time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select><button class="filter-button">☷ Filters <span>0</span></button></section>
+    <div class="notice hidden" id="notice" role="status"></div>
 
-      <section class="stats-grid">
-        <article class="stat-card"><div class="stat-label">Latest sale <span class="trend positive">↗ live</span></div><div class="stat-value" id="latest">—</div><div class="stat-foot" id="latestFoot">Waiting for data</div></article>
-        <article class="stat-card"><div class="stat-label">Median sale price</div><div class="stat-value" id="median">—</div><div class="stat-foot">Across <span id="saleCount">—</span> recorded sales</div></article>
-        <article class="stat-card"><div class="stat-label">Four-week volume</div><div class="stat-value" id="volume">—</div><div class="stat-foot">USD settled on-chain</div></article>
-        <article class="stat-card accent-card"><div class="stat-label">Cards with activity</div><div class="stat-value" id="activeCards">—</div><div class="stat-foot"><span class="mini-bar"><i></i></span> of <span id="catalogCount">—</span> catalog cards</div></article>
-      </section>
+    <section aria-labelledby="openingTitle">
+      <div class="section-heading">
+        <div><span class="step">01</span><div><p class="eyebrow">Opening segment</p><h2 id="openingTitle">SPS burn & pack market</h2></div></div>
+        <span class="section-note" id="compareLabel">Compared with the previous episode</span>
+      </div>
 
-      <section class="section-heading"><div><p class="eyebrow">Price discovery</p><h2 id="selectedCardTitle">Market activity <span>·</span> all cards</h2></div><div class="legend"><span><i class="legend-line"></i>Sale price</span><span><i class="legend-dot"></i>Median</span></div></section>
-      <section class="chart-card"><div class="chart-meta"><div><span class="chart-big" id="chartPrice">—</span><span class="trend positive">↗ rolling window</span><small id="chartSub">Select a card below to inspect its history</small></div><div class="chart-tools"><button class="range active">4W</button><button class="range">7D</button><button class="range">ALL</button></div></div><div class="chart-wrap"><svg id="chart" viewBox="0 0 900 270" preserveAspectRatio="none" role="img" aria-label="Card sale price chart"></svg><div class="chart-tooltip" id="tooltip"></div></div><div class="axis"><span id="axisStart">4 weeks ago</span><span>2 weeks ago</span><span>Today</span></div></section>
+      <div class="burn-grid">
+        <article class="metric-card hero-metric"><p>Total SPS burned</p><strong id="totalBurned">—</strong><span>Official validator supply</span></article>
+        <article class="metric-card accent-metric"><p>Burned since last episode</p><strong id="burnDelta">—</strong><span id="burnDeltaNote">Save an episode to begin comparison</span></article>
+        <article class="metric-card"><p>Episode cadence</p><strong id="cadence">—</strong><span id="cadenceNote">No saved episode yet</span></article>
+      </div>
 
-      <section class="lower-grid"><div class="panel"><div class="panel-header"><div><p class="eyebrow">Card explorer</p><h2>Most active cards</h2></div><button class="text-button" id="clearSelection">View all ↗</button></div><div id="cardList"></div></div>
-        <div class="panel activity"><div class="panel-header"><div><p class="eyebrow">Latest movement</p><h2>Recent sales</h2></div><span class="pill" id="salesPill">— sales</span></div><div id="activityList"></div></div></section>
-      <footer><span>Card Ledger · Splinterlands market history</span><span>Source: local on-chain history cache · paid sales only</span></footer>
-    </main>
-  </div>
+      <div class="panel pack-panel">
+        <div class="panel-title"><div><p class="eyebrow">Pack set</p><h2>Price and available supply</h2></div><div class="panel-tools"><span id="packCount">— packs</span><button class="text-button" type="button" id="togglePacks">Show all</button></div></div>
+        <div class="table-scroll"><div class="pack-table" id="packTable" role="table" aria-label="Pack market comparison"></div></div>
+      </div>
+    </section>
+
+    <section class="cards-section" aria-labelledby="cardsTitle">
+      <div class="section-heading">
+        <div><span class="step cyan-step">02</span><div><p class="eyebrow cyan-text">Card deep dive</p><h2 id="cardsTitle">Find the stories worth covering</h2></div></div>
+        <span class="section-note">Click a card to add it to the run sheet</span>
+      </div>
+
+      <div class="card-stats" id="cardStats"></div>
+
+      <div class="workspace-grid">
+        <div class="panel explorer-panel">
+          <div class="filters">
+            <label class="search-field"><span>⌕</span><input id="searchCards" type="search" placeholder="Search cards" autocomplete="off"></label>
+            <label><span>Set</span><select id="setFilter"><option value="all">All sets</option></select></label>
+            <label><span>Foil</span><select id="foilFilter"><option value="all">All foils</option><option value="Regular">Regular</option><option value="Gold">Gold</option><option value="Black">Black</option><option value="Other">Other</option></select></label>
+            <label><span>Rank by</span><select id="sortCards"><option value="movers">Biggest movers</option><option value="supply">Lowest supply</option><option value="price">Highest price</option></select></label>
+          </div>
+          <div class="table-scroll"><div class="card-table" id="cardTable" role="table" aria-label="Card market ranking"></div></div>
+        </div>
+
+        <aside class="panel run-panel">
+          <div class="panel-title run-title"><div><p class="eyebrow">Recording order</p><h2>Episode run sheet</h2></div><span class="count-pill" id="runCount">0</span></div>
+          <div class="run-list" id="runList"></div>
+          <div class="notes-box" id="notesBox">
+            <label for="talkingPoints">Talking points</label>
+            <textarea id="talkingPoints" rows="5" placeholder="Select a run-sheet card, then add your angle, context or warning…"></textarea>
+          </div>
+          <div class="run-actions">
+            <button class="ghost-button" id="downloadCsv" type="button">Download CSV</button>
+            <button class="primary-button" id="startPresenter" type="button">Start presenter →</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <main class="presenter-view hidden" id="presenter" aria-live="polite">
+    <div class="presenter-header"><div class="brand"><span class="brand-mark">MW</span><span>Market Watch <small>On air</small></span></div><div class="presenter-progress"><span id="presenterCounter">1 / 1</span><i><b id="presenterProgress"></b></i></div><button class="ghost-button" id="exitPresenter" type="button">Exit presenter</button></div>
+    <article class="presenter-card">
+      <p class="presenter-kicker" id="presenterKicker">Opening segment</p>
+      <h2 id="presenterTitle">Total SPS burned</h2>
+      <strong class="presenter-value" id="presenterValue">—</strong>
+      <div class="presenter-comparison" id="presenterComparison"></div>
+      <p class="presenter-notes" id="presenterNotes">Live figures load when the market snapshot is ready.</p>
+    </article>
+    <div class="presenter-controls"><button class="ghost-button" id="previousSlide" type="button">← Previous</button><span>Use ← and → keys</span><button class="primary-button" id="nextSlide" type="button">Next →</button></div>
+  </main>
+
+  <div class="toast hidden" id="toast" role="status"></div>
   <script src="./app.js"></script>
 </body>
 </html>
+
