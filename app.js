@@ -6,6 +6,9 @@ const ENDPOINTS = {
 };
 
 const EDITIONS = { 0:'Alpha',1:'Beta',2:'Promo',3:'Reward',4:'Untamed',5:'Dice',6:'Gladius',7:'Chaos Legion',8:'Riftwatchers',9:'Soulbound Rewards',10:'Soulbound',11:'Promo',12:'Rebellion',13:'Soulbound Rewards',14:'Conclave Arcana',15:'Escalation',16:'Soulbound Rewards',17:'Promo',18:'Soulbound',19:'Event' };
+const RARITIES = { 1:'Common',2:'Rare',3:'Epic',4:'Legendary' };
+const RARITY_ORDER = ['Common','Rare','Epic','Legendary'];
+const FOIL_ORDER = ['Regular','Gold','Black','Other'];
 const STORAGE = { snapshots:'marketWatchSnapshotsV2', run:'marketWatchRunSheetV2', notes:'marketWatchNotesV2' };
 const SEEDED_PREVIOUS = {
   capturedAt: Date.parse('2026-08-16T12:00:00Z'),
@@ -26,12 +29,12 @@ const FALLBACK_PACKS = [
 ];
 
 const FALLBACK_CARDS = [
-  { key:'1047:0:12',id:1047,name:'Vaelok',edition:12,set:'Rebellion',foil:'Regular',price:.435,supply:4 },
-  { key:'411:0:7',id:411,name:'Chaos Dragon',edition:7,set:'Chaos Legion',foil:'Regular',price:1.42,supply:28 },
-  { key:'239:1:4',id:239,name:'Yodin Zaku',edition:4,set:'Untamed',foil:'Gold',price:92,supply:3 },
-  { key:'696:0:12',id:696,name:'Grimbardun Smith',edition:12,set:'Rebellion',foil:'Regular',price:.78,supply:16 },
-  { key:'505:0:12',id:505,name:'Mantaroth',edition:12,set:'Rebellion',foil:'Regular',price:6.2,supply:11 },
-  { key:'426:1:7',id:426,name:'Doctor Blight',edition:7,set:'Chaos Legion',foil:'Gold',price:54,supply:5 },
+  { key:'1047:0:12',id:1047,name:'Vaelok',edition:12,set:'Rebellion',rarity:'Common',foil:'Regular',price:.435,supply:4 },
+  { key:'411:0:7',id:411,name:'Chaos Dragon',edition:7,set:'Chaos Legion',rarity:'Legendary',foil:'Regular',price:1.42,supply:28 },
+  { key:'239:1:4',id:239,name:'Yodin Zaku',edition:4,set:'Untamed',rarity:'Legendary',foil:'Gold',price:92,supply:3 },
+  { key:'696:0:12',id:696,name:'Grimbardun Smith',edition:12,set:'Rebellion',rarity:'Rare',foil:'Regular',price:.78,supply:16 },
+  { key:'505:0:12',id:505,name:'Mantaroth',edition:12,set:'Rebellion',rarity:'Legendary',foil:'Regular',price:6.2,supply:11 },
+  { key:'426:1:7',id:426,name:'Doctor Blight',edition:7,set:'Chaos Legion',rarity:'Legendary',foil:'Gold',price:54,supply:5 },
 ];
 
 const $ = id => document.getElementById(id);
@@ -39,7 +42,7 @@ const state = {
   loading:false, spsBurned:null, packs:[], cards:[], packExpanded:false,
   snapshots:readStore(STORAGE.snapshots,[]), previous:null,
   runSheet:readStore(STORAGE.run,[]), notes:readStore(STORAGE.notes,{}), activeRunKey:null,
-  filters:{ search:'',set:'all',foil:'all',sort:'movers' }, presenterIndex:0, warnings:[], historySource:'seed',
+  filters:{ search:'',set:'all',foil:'all',sort:'movers' }, bandSet:'', presenterIndex:0, warnings:[], historySource:'seed',
 };
 state.previous = chooseComparison([...state.snapshots, SEEDED_PREVIOUS]);
 
@@ -92,7 +95,7 @@ function normalizeCards(catalog,market){
     if(!id||!Number.isFinite(price)||price<=0||!Number.isFinite(supply))continue;
     const existing=groups.get(key);const detail=details.get(id);
     if(existing){existing.price=Math.min(existing.price,price);existing.supply+=supply;continue}
-    groups.set(key,{key,id,name:detail?.name||`Card #${id}`,edition,set:EDITIONS[edition]||`Edition ${edition}`,foil,price,supply});
+    groups.set(key,{key,id,name:detail?.name||`Card #${id}`,edition,set:EDITIONS[edition]||`Edition ${edition}`,rarity:RARITIES[Number(detail?.rarity)]||'Unknown',foil,price,supply});
   }
   return [...groups.values()];
 }
@@ -155,6 +158,27 @@ function renderFilters(){
   select.innerHTML='<option value="all">All sets</option>'+sets.map(set=>`<option value="${esc(set)}">${esc(set)}</option>`).join('');select.value=sets.includes(current)?current:'all';
 }
 
+function renderCardBands(){
+  const sets=[...new Set(state.cards.map(card=>card.set))].sort();
+  if(!sets.includes(state.bandSet))state.bandSet=sets[0]||'';
+  const select=$('bandSetFilter');select.innerHTML=sets.map(set=>`<option value="${esc(set)}">${esc(set)}</option>`).join('');select.value=state.bandSet;
+  const cards=state.cards.filter(card=>card.set===state.bandSet&&Number.isFinite(card.price)&&card.price>0);
+  $('bandCount').textContent=`${number(cards.length)} market groups`;
+  const additional=[...new Set(cards.map(card=>card.rarity).filter(rarity=>!RARITY_ORDER.includes(rarity)))].sort();
+  const rarities=[...RARITY_ORDER,...additional];
+  const headFoils=FOIL_ORDER.map(foil=>`<th colspan="2" scope="colgroup">${esc(foil)}</th>`).join('');
+  const headBands=FOIL_ORDER.map(()=>'<th scope="col">Low</th><th scope="col">High</th>').join('');
+  const rows=rarities.map(rarity=>{
+    const cells=FOIL_ORDER.map(foil=>{
+      const prices=cards.filter(card=>card.rarity===rarity&&card.foil===foil).map(card=>card.price).sort((a,b)=>a-b);
+      if(!prices.length)return '<td class="band-price empty">—</td><td class="band-price empty">—</td>';
+      return `<td class="band-price low">${money(prices[0])}</td><td class="band-price high">${money(prices.at(-1))}</td>`;
+    }).join('');
+    return `<tr><th scope="row"><span class="rarity-dot rarity-${rarity.toLowerCase()}"></span>${esc(rarity)}</th>${cells}</tr>`;
+  }).join('');
+  $('bandTable').innerHTML=`<thead><tr><th rowspan="2" scope="col">Rarity</th>${headFoils}</tr><tr>${headBands}</tr></thead><tbody>${rows}</tbody>`;
+}
+
 function renderCards(){
   const rows=rankedCards().slice(0,60);
   $('cardTable').innerHTML=`<div class="card-row table-head" role="row"><span>Card</span><span>Floor</span><span>Movement</span><span>Supply</span><span></span></div>${rows.map(card=>{
@@ -184,7 +208,7 @@ function renderStatus(){
   const last=state.snapshots.at(-1);$('saveState').textContent=last?`Last saved ${dateLabel(last.capturedAt)}`:`History ${dateLabel(state.previous.capturedAt)}`;
 }
 
-function renderAll(){renderStatus();renderOpening();renderCardStats();renderFilters();renderCards();renderRunSheet();renderPresenter()}
+function renderAll(){renderStatus();renderOpening();renderCardStats();renderFilters();renderCardBands();renderCards();renderRunSheet();renderPresenter()}
 
 function saveEpisode(){
   if(!state.packs.length||!state.cards.length){showToast('Refresh the market before saving');return}
@@ -212,7 +236,8 @@ function setView(view){const presenter=view==='presenter';document.querySelector
 
 function bindEvents(){
   $('refreshSnapshot').addEventListener('click',loadSnapshot);$('saveSnapshot').addEventListener('click',saveEpisode);$('togglePacks').addEventListener('click',()=>{state.packExpanded=!state.packExpanded;renderOpening();renderPresenter()});$('downloadCsv').addEventListener('click',downloadCsv);$('startPresenter').addEventListener('click',()=>setView('presenter'));$('exitPresenter').addEventListener('click',()=>setView('producer'));$('previousSlide').addEventListener('click',()=>changeSlide(-1));$('nextSlide').addEventListener('click',()=>changeSlide(1));document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>setView(button.dataset.view)));
-  $('searchCards').addEventListener('input',event=>{state.filters.search=event.target.value;renderCards()});$('setFilter').addEventListener('change',event=>{state.filters.set=event.target.value;renderCards()});$('foilFilter').addEventListener('change',event=>{state.filters.foil=event.target.value;renderCards()});$('sortCards').addEventListener('change',event=>{state.filters.sort=event.target.value;renderCards()});
+  $('searchCards').addEventListener('input',event=>{state.filters.search=event.target.value;renderCards()});$('setFilter').addEventListener('change',event=>{state.filters.set=event.target.value;if(event.target.value!=='all'){state.bandSet=event.target.value;renderCardBands()}renderCards()});$('foilFilter').addEventListener('change',event=>{state.filters.foil=event.target.value;renderCards()});$('sortCards').addEventListener('change',event=>{state.filters.sort=event.target.value;renderCards()});
+  $('bandSetFilter').addEventListener('change',event=>{state.bandSet=event.target.value;renderCardBands()});
   $('talkingPoints').addEventListener('input',event=>{if(!state.activeRunKey)return;state.notes[state.activeRunKey]=event.target.value;writeStore(STORAGE.notes,state.notes)});
   document.addEventListener('keydown',event=>{if($('presenter').classList.contains('hidden'))return;if(event.key==='ArrowRight')changeSlide(1);if(event.key==='ArrowLeft')changeSlide(-1);if(event.key==='Escape')setView('producer')});
 }
