@@ -20,6 +20,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./bands.css">
+  <link rel="stylesheet" href="./economy.css">
 </head>
 <body>
   <header class="topbar">
@@ -51,14 +52,23 @@
 
     <section aria-labelledby="openingTitle">
       <div class="section-heading">
-        <div><span class="step">01</span><div><p class="eyebrow">Opening segment</p><h2 id="openingTitle">SPS burn & pack market</h2></div></div>
+        <div><span class="step">01</span><div><p class="eyebrow">Opening segment</p><h2 id="openingTitle">Token economy &amp; pack market</h2></div></div>
         <span class="section-note" id="compareLabel">Compared with the previous episode</span>
       </div>
 
-      <div class="burn-grid">
-        <article class="metric-card hero-metric"><p>Total SPS burned</p><strong id="totalBurned">—</strong><span>Official validator supply</span></article>
-        <article class="metric-card accent-metric"><p>Burned since last episode</p><strong id="burnDelta">—</strong><span id="burnDeltaNote">Save an episode to begin comparison</span></article>
+      <div class="burn-grid economy-grid">
+        <article class="metric-card hero-metric glint-burn-card">
+          <p>SPS burned for extra Glint</p><strong id="glintBurnTotal">—</strong>
+          <div class="burn-split"><span><b>Modern</b><em id="burnModern">—</em></span><span><b>Wild</b><em id="burnWild">—</em></span></div>
+          <small id="glintBurnDelta">Compared with the previous episode</small>
+        </article>
+        <article class="metric-card accent-metric"><p>VOUCHERS in circulation</p><strong id="voucherTotal">—</strong><span id="voucherDelta">Compared with the previous episode</span></article>
         <article class="metric-card"><p>Episode cadence</p><strong id="cadence">—</strong><span id="cadenceNote">No saved episode yet</span></article>
+      </div>
+
+      <div class="panel token-panel">
+        <div class="panel-title"><div><p class="eyebrow">Token market</p><h2>USD prices</h2></div><span class="section-note">DEC shown per 1,000</span></div>
+        <div class="table-scroll"><div class="token-table" id="tokenTable" role="table" aria-label="Token price comparison"></div></div>
       </div>
 
       <div class="panel pack-panel">

@@ -1,8 +1,11 @@
 const ENDPOINTS = {
-  supply: 'https://splinterlands-validator-api.splinterlands.com/extensions/tokens/SPS/supply',
   packs: 'https://vapi.splinterlands.com/market/landing',
   catalog: 'https://api2.splinterlands.com/cards/get_details',
   market: 'https://api.splinterlands.com/market/for_sale_grouped',
+  prices: 'https://prices.splinterlands.com/prices',
+  vouchers: 'https://api.splinterlands.com/players/richlist?token_type=VOUCHER',
+  burnModern: 'https://api.splinterlands.com/players/burn_rewards_leaderboard?type=modern',
+  burnWild: 'https://api.splinterlands.com/players/burn_rewards_leaderboard?type=wild',
 };
 
 const EDITIONS = { 0:'Alpha',1:'Beta',2:'Promo',3:'Reward',4:'Untamed',5:'Dice',6:'Gladius',7:'Chaos Legion',8:'Riftwatchers',9:'Soulbound Rewards',10:'Soulbound',11:'Promo',12:'Rebellion',13:'Soulbound Rewards',14:'Conclave Arcana',15:'Escalation',16:'Soulbound Rewards',17:'Promo',18:'Soulbound',19:'Event' };
@@ -13,13 +16,15 @@ const STORAGE = { snapshots:'marketWatchSnapshotsV2', run:'marketWatchRunSheetV2
 const SEEDED_PREVIOUS = {
   capturedAt: Date.parse('2026-08-16T12:00:00Z'),
   label: 'Spreadsheet · 16 Aug 2026',
-  spsBurned: null,
+  economy: { spsPrice:.0033, voucherPrice:.0133, decPrice:.000333, totalVouchers:18006540, burnModern:1125878.715, burnWild:2347625.334 },
   packs: {
     ALPHA:{ price:29.99, supply:4070 }, BETA:{ price:5.99, supply:19387 },
     UNTAMED:{ price:2.88, supply:39794 }, DICE:{ price:1.88, supply:4490 },
   },
   cards: {},
 };
+
+const FALLBACK_ECONOMY = { spsPrice:.0034, voucherPrice:.0126, decPrice:.000339, totalVouchers:18092505, burnModern:1212064.388, burnWild:2523915.967 };
 
 const FALLBACK_PACKS = [
   { id:'ALPHA',name:'Alpha Pack',group:'Core',price:13.99,supply:5697,listed:45,image:'https://d36mxiodymuqjm.cloudfront.net/website/icons/icon_pack_alpha.png' },
@@ -39,7 +44,7 @@ const FALLBACK_CARDS = [
 
 const $ = id => document.getElementById(id);
 const state = {
-  loading:false, spsBurned:null, packs:[], cards:[], packExpanded:false,
+  loading:false, economy:{...FALLBACK_ECONOMY}, packs:[], cards:[], packExpanded:false,
   snapshots:readStore(STORAGE.snapshots,[]), previous:null,
   runSheet:readStore(STORAGE.run,[]), notes:readStore(STORAGE.notes,{}), activeRunKey:null,
   filters:{ search:'',set:'all',foil:'all',sort:'movers' }, bandSet:'', presenterIndex:0, warnings:[], historySource:'seed',
@@ -53,7 +58,8 @@ function chooseComparison(candidates){
   return candidates.filter(item=>Number.isFinite(item?.capturedAt)&&item.capturedAt<cutoff).sort((a,b)=>Math.abs(a.capturedAt-target)-Math.abs(b.capturedAt-target))[0]||SEEDED_PREVIOUS;
 }
 function expandSharedSnapshot(raw){
-  return {capturedAt:Number(raw.capturedAt),label:`Shared history · ${raw.date}`,spsBurned:Number.isFinite(raw.s)?raw.s:null,packs:Object.fromEntries(Object.entries(raw.p||{}).map(([key,value])=>[key,{price:Number(value[0]),supply:Number(value[1])}])),cards:Object.fromEntries(Object.entries(raw.c||{}).map(([key,value])=>[key,{price:Number(value[0]),supply:Number(value[1])}]))};
+  const economy=raw.e&&typeof raw.e==='object'?Object.fromEntries(Object.entries(raw.e).map(([key,value])=>[key,Number(value)])):{...SEEDED_PREVIOUS.economy};
+  return {capturedAt:Number(raw.capturedAt),label:`Shared history · ${raw.date}`,economy,packs:Object.fromEntries(Object.entries(raw.p||{}).map(([key,value])=>[key,{price:Number(value[0]),supply:Number(value[1])}])),cards:Object.fromEntries(Object.entries(raw.c||{}).map(([key,value])=>[key,{price:Number(value[0]),supply:Number(value[1])}]))};
 }
 async function loadSharedHistory(){
   try{
@@ -65,6 +71,7 @@ async function loadSharedHistory(){
 function esc(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]))}
 function number(value,digits=0){return Number.isFinite(value)?Number(value).toLocaleString('en-GB',{maximumFractionDigits:digits,minimumFractionDigits:digits}):'—'}
 function money(value){if(!Number.isFinite(value))return '—';const digits=value<.01?5:value<1?3:2;return `$${Number(value).toLocaleString('en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits})}`}
+function tokenMoney(value,digits=4){return Number.isFinite(value)?`$${Number(value).toLocaleString('en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits})}`:'—'}
 function signed(value,suffix=''){if(!Number.isFinite(value))return '—';return `${value>0?'+':''}${number(value,Math.abs(value)<10?1:0)}${suffix}`}
 function deltaPct(current,previous){return Number.isFinite(current)&&Number.isFinite(previous)&&previous!==0?((current-previous)/previous)*100:null}
 function dateLabel(ms){return new Date(ms).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
@@ -100,16 +107,29 @@ function normalizeCards(catalog,market){
   return [...groups.values()];
 }
 
+function normalizeEconomy(prices,vouchers,burnModern,burnWild){
+  const nullBalance=Number(vouchers?.richlist?.find(row=>row.player==='null')?.balance||0);
+  const totalQuantity=Number(vouchers?.total_quantity);
+  return {
+    spsPrice:Number(prices?.sps),voucherPrice:Number(prices?.voucher),decPrice:Number(prices?.dec),
+    totalVouchers:Number.isFinite(totalQuantity)?totalQuantity-nullBalance:null,
+    burnModern:Number(burnModern?.totals?.total_sps_burned),burnWild:Number(burnWild?.totals?.total_sps_burned),
+  };
+}
+
 async function loadSnapshot(){
   if(state.loading)return;state.loading=true;state.warnings=[];
   $('refreshSnapshot').disabled=true;$('refreshSnapshot').innerHTML='<span>↻</span> Refreshing…';
   $('dataState').className='data-state';$('dataState').querySelector('span').textContent='Refreshing official market sources…';
   const historyPromise=loadSharedHistory();
-  const results=await Promise.allSettled([fetchJson(ENDPOINTS.supply),fetchJson(ENDPOINTS.packs),fetchJson(ENDPOINTS.catalog,25000),fetchJson(ENDPOINTS.market,25000)]);
+  const results=await Promise.allSettled([fetchJson(ENDPOINTS.packs),fetchJson(ENDPOINTS.catalog,25000),fetchJson(ENDPOINTS.market,25000),fetchJson(ENDPOINTS.prices),fetchJson(ENDPOINTS.vouchers,30000),fetchJson(ENDPOINTS.burnModern,30000),fetchJson(ENDPOINTS.burnWild,30000)]);
   await historyPromise;
-  if(results[0].status==='fulfilled')state.spsBurned=Number(results[0].value.burned);else state.warnings.push('SPS burn');
-  if(results[1].status==='fulfilled'){const packs=normalizePacks(results[1].value);state.packs=packs.length?packs:FALLBACK_PACKS}else{state.packs=FALLBACK_PACKS;state.warnings.push('pack market')}
-  if(results[2].status==='fulfilled'&&results[3].status==='fulfilled'){const cards=normalizeCards(results[2].value,results[3].value);state.cards=cards.length?cards:FALLBACK_CARDS}else{state.cards=FALLBACK_CARDS;state.warnings.push('card market')}
+  if(results[0].status==='fulfilled'){const packs=normalizePacks(results[0].value);state.packs=packs.length?packs:FALLBACK_PACKS}else{state.packs=FALLBACK_PACKS;state.warnings.push('pack market')}
+  if(results[1].status==='fulfilled'&&results[2].status==='fulfilled'){const cards=normalizeCards(results[1].value,results[2].value);state.cards=cards.length?cards:FALLBACK_CARDS}else{state.cards=FALLBACK_CARDS;state.warnings.push('card market')}
+  if(results.slice(3).every(result=>result.status==='fulfilled')){
+    const economy=normalizeEconomy(results[3].value,results[4].value,results[5].value,results[6].value);
+    state.economy=Object.fromEntries(Object.entries(FALLBACK_ECONOMY).map(([key,fallback])=>[key,Number.isFinite(economy[key])?economy[key]:fallback]));
+  }else{state.economy={...FALLBACK_ECONOMY};state.warnings.push('token economy')}
   state.loading=false;$('refreshSnapshot').disabled=false;$('refreshSnapshot').innerHTML='<span>↻</span> Refresh snapshot';
   ensureRunSheet();renderAll();
 }
@@ -133,13 +153,24 @@ function rankedCards(){
 
 function packSignal(pack,change){if(pack.supply<100||pack.listed<15)return ['Low supply','hot'];if(Number.isFinite(change)&&Math.abs(change)>10)return ['Watch','watch'];return ['Stable','']}
 function renderOpening(){
-  $('totalBurned').textContent=number(state.spsBurned,3);
-  const previousBurn=state.previous?.spsBurned;const burnDelta=Number.isFinite(previousBurn)&&Number.isFinite(state.spsBurned)?state.spsBurned-previousBurn:null;
-  $('burnDelta').textContent=number(burnDelta,3);$('burnDelta').className=changeClass(burnDelta);
-  $('burnDeltaNote').textContent=Number.isFinite(burnDelta)?`Since ${dateLabel(state.previous.capturedAt)}`:'Save a live episode to begin comparison';
   const days=state.previous?.capturedAt?Math.max(1,Math.round((Date.now()-state.previous.capturedAt)/86400000)):null;
+  const current=state.economy,previous=state.previous?.economy||{};
+  const totalBurn=(current.burnModern||0)+(current.burnWild||0),previousBurn=(previous.burnModern||0)+(previous.burnWild||0),burnDelta=Number.isFinite(previousBurn)?totalBurn-previousBurn:null;
+  const voucherDelta=Number.isFinite(previous.totalVouchers)?current.totalVouchers-previous.totalVouchers:null;
+  $('glintBurnTotal').textContent=number(totalBurn,3);$('burnModern').textContent=number(current.burnModern,3);$('burnWild').textContent=number(current.burnWild,3);
+  $('glintBurnDelta').textContent=Number.isFinite(burnDelta)?`${signed(burnDelta)} since ${dateLabel(state.previous.capturedAt)} · ${signed(burnDelta/days)} per day`:'No previous Glint-burn total';
+  $('voucherTotal').textContent=number(current.totalVouchers,3);$('voucherDelta').textContent=Number.isFinite(voucherDelta)?`${signed(voucherDelta)} since ${dateLabel(state.previous.capturedAt)} · ${signed(voucherDelta/days)} per day`:'No previous VOUCHER total';
   $('cadence').textContent=days?`${days} days`:'—';$('cadenceNote').textContent=state.previous?.label||`Compared with ${dateLabel(state.previous.capturedAt)}`;
   $('compareLabel').textContent=state.previous?`Compared with ${dateLabel(state.previous.capturedAt)}`:'No previous episode';
+  const tokens=[
+    {name:'SPS',note:'per token',current:current.spsPrice,previous:previous.spsPrice,digits:4},
+    {name:'VOUCHER',note:'per token',current:current.voucherPrice,previous:previous.voucherPrice,digits:4},
+    {name:'DEC (1,000)',note:'1,000 Dark Energy Crystals',current:current.decPrice*1000,previous:previous.decPrice*1000,digits:3},
+  ];
+  $('tokenTable').innerHTML=`<div class="token-row table-head" role="row"><span>Token</span><span>Current</span><span>Previous</span><span>Movement</span></div>${tokens.map(token=>{
+    const change=deltaPct(token.current,token.previous);
+    return `<div class="token-row" role="row"><div class="token-name"><strong>${token.name}</strong><small>${token.note}</small></div><span class="mono">${tokenMoney(token.current,token.digits)}</span><span class="mono">${tokenMoney(token.previous,token.digits)}</span><span class="movement ${changeClass(change)}">${Number.isFinite(change)?signed(change,'%'):'—'}</span></div>`;
+  }).join('')}`;
   const rows=state.packExpanded?state.packs:state.packs.slice(0,7);$('packCount').textContent=`${state.packs.length} pack types`;$('togglePacks').textContent=state.packExpanded?'Show less':'Show all';
   $('packTable').innerHTML=`<div class="pack-row table-head" role="row"><span>Set</span><span>Floor price</span><span>Circulating</span><span>Change</span><span>Signal</span></div>${rows.map(pack=>{
     const previous=state.previous?.packs?.[pack.id],supplyChange=Number.isFinite(previous?.supply)?pack.supply-previous.supply:null,priceChange=deltaPct(pack.price,previous?.price),[signal,signalClass]=packSignal(pack,supplyChange);
@@ -212,20 +243,28 @@ function renderAll(){renderStatus();renderOpening();renderCardStats();renderFilt
 
 function saveEpisode(){
   if(!state.packs.length||!state.cards.length){showToast('Refresh the market before saving');return}
-  const snapshot={capturedAt:Date.now(),label:'Saved episode',spsBurned:state.spsBurned,packs:Object.fromEntries(state.packs.map(pack=>[pack.id,{price:pack.price,supply:pack.supply}])),cards:Object.fromEntries(state.cards.map(card=>[card.key,{price:card.price,supply:card.supply}]))};
+  const snapshot={capturedAt:Date.now(),label:'Saved episode',economy:{...state.economy},packs:Object.fromEntries(state.packs.map(pack=>[pack.id,{price:pack.price,supply:pack.supply}])),cards:Object.fromEntries(state.cards.map(card=>[card.key,{price:card.price,supply:card.supply}]))};
   state.snapshots=[...state.snapshots,snapshot].slice(-12);writeStore(STORAGE.snapshots,state.snapshots);renderStatus();showToast('Episode snapshot saved for the next comparison');
 }
 
 function downloadCsv(){
+  const economy=state.economy,previousEconomy=state.previous?.economy||{};
+  const economyRows=[['Token','SPS price','','',economy.spsPrice,previousEconomy.spsPrice??'',deltaPct(economy.spsPrice,previousEconomy.spsPrice)??'','','','',''],['Token','VOUCHER price','','',economy.voucherPrice,previousEconomy.voucherPrice??'',deltaPct(economy.voucherPrice,previousEconomy.voucherPrice)??'','','','',''],['Token','DEC price (1,000)','','',economy.decPrice*1000,Number.isFinite(previousEconomy.decPrice)?previousEconomy.decPrice*1000:'',deltaPct(economy.decPrice,previousEconomy.decPrice)??'','','','',''],['Supply','VOUCHERS in circulation','','',economy.totalVouchers,previousEconomy.totalVouchers??'','',economy.totalVouchers,previousEconomy.totalVouchers??'',Number.isFinite(previousEconomy.totalVouchers)?economy.totalVouchers-previousEconomy.totalVouchers:'',''],['Burn','SPS burned for Glint — Modern','','',economy.burnModern,previousEconomy.burnModern??'','',economy.burnModern,previousEconomy.burnModern??'',Number.isFinite(previousEconomy.burnModern)?economy.burnModern-previousEconomy.burnModern:'',''],['Burn','SPS burned for Glint — Wild','','',economy.burnWild,previousEconomy.burnWild??'','',economy.burnWild,previousEconomy.burnWild??'',Number.isFinite(previousEconomy.burnWild)?economy.burnWild-previousEconomy.burnWild:'','']];
   const packRows=state.packs.map(pack=>{const previous=state.previous?.packs?.[pack.id];return ['Pack',pack.name,pack.group,'',pack.price,previous?.price??'',deltaPct(pack.price,previous?.price)??'',pack.supply,previous?.supply??'',Number.isFinite(previous?.supply)?pack.supply-previous.supply:'','']});
   const map=new Map(state.cards.map(card=>[card.key,enrichedCard(card)]));const cardRows=state.runSheet.map(key=>{const card=map.get(key);return card?['Card',card.name,card.set,card.foil,card.price,previousCard(card)?.price??'',card.priceChange??'',card.supply,previousCard(card)?.supply??'',card.supplyChange??'',state.notes[key]||'']:null}).filter(Boolean);
-  const rows=[['Section','Name','Set','Foil','Current price','Previous price','Price change %','Current supply','Previous supply','Supply change','Talking points'],...packRows,...cardRows];
+  const rows=[['Section','Name','Set','Foil','Current price/value','Previous price/value','Price change %','Current supply/value','Previous supply/value','Supply/value change','Talking points'],...economyRows,...packRows,...cardRows];
   const csv=rows.map(row=>row.map(value=>`"${String(value??'').replaceAll('"','""')}"`).join(',')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`market-watch-${new Date().toISOString().slice(0,10)}.csv`;link.click();URL.revokeObjectURL(url);showToast('Run sheet downloaded');
 }
 
 function presenterSlides(){
-  const burnDelta=Number.isFinite(state.previous?.spsBurned)&&Number.isFinite(state.spsBurned)?state.spsBurned-state.previous.spsBurned:null;
-  const slides=[{kicker:'Opening segment',title:'Total SPS burned',value:number(state.spsBurned,3),comparison:Number.isFinite(burnDelta)?`${signed(burnDelta)} since ${dateLabel(state.previous.capturedAt)}`:'Official validator supply',notes:'Begin with the SPS supply burn, then compare it with the previous episode.'}];
+  const economy=state.economy,previous=state.previous?.economy||{},totalBurn=economy.burnModern+economy.burnWild,previousBurn=previous.burnModern+previous.burnWild,burnDelta=Number.isFinite(previousBurn)?totalBurn-previousBurn:null,voucherDelta=Number.isFinite(previous.totalVouchers)?economy.totalVouchers-previous.totalVouchers:null;
+  const slides=[
+    {kicker:'Opening segment · Rewards',title:'SPS burned for extra Glint',value:number(totalBurn,3),comparison:Number.isFinite(burnDelta)?`${signed(burnDelta)} since ${dateLabel(state.previous.capturedAt)}`:'Official all-time Reward Burn total',notes:`Modern ${number(economy.burnModern,3)} · Wild ${number(economy.burnWild,3)}. This is SPS voluntarily burned from ranked rewards for additional Glint, not the validator-wide SPS burn total.`},
+    {kicker:'Opening segment · Supply',title:'VOUCHERS in circulation',value:number(economy.totalVouchers,3),comparison:Number.isFinite(voucherDelta)?`${signed(voucherDelta)} since ${dateLabel(state.previous.capturedAt)}`:'Current non-burn balance',notes:'Total VOUCHER balance across player accounts, excluding the null burn account.'},
+    {kicker:'Opening segment · Token price',title:'SPS price',value:tokenMoney(economy.spsPrice,4),comparison:Number.isFinite(previous.spsPrice)?`${signed(deltaPct(economy.spsPrice,previous.spsPrice),'%')} since ${dateLabel(state.previous.capturedAt)}`:'Current USD price',notes:'Official Splinterlands token price service.'},
+    {kicker:'Opening segment · Token price',title:'VOUCHER price',value:tokenMoney(economy.voucherPrice,4),comparison:Number.isFinite(previous.voucherPrice)?`${signed(deltaPct(economy.voucherPrice,previous.voucherPrice),'%')} since ${dateLabel(state.previous.capturedAt)}`:'Current USD price',notes:'Official Splinterlands token price service.'},
+    {kicker:'Opening segment · Token price',title:'DEC price per 1,000',value:tokenMoney(economy.decPrice*1000,3),comparison:Number.isFinite(previous.decPrice)?`${signed(deltaPct(economy.decPrice,previous.decPrice),'%')} since ${dateLabel(state.previous.capturedAt)}`:'Current USD price',notes:'Shown per 1,000 DEC to match the Market Watch spreadsheet.'},
+  ];
   slides.push(...state.packs.slice(0,state.packExpanded?state.packs.length:7).map(pack=>{const previous=state.previous?.packs?.[pack.id],priceChange=deltaPct(pack.price,previous?.price),supplyChange=Number.isFinite(previous?.supply)?pack.supply-previous.supply:null;return {kicker:'Pack market',title:pack.name,value:money(pack.price),comparison:`${Number.isFinite(priceChange)?signed(priceChange,'%'):'No price comparison'} · ${number(pack.supply)} circulating`,notes:Number.isFinite(supplyChange)?`${signed(supplyChange)} packs in circulation since the previous episode.`:`${number(pack.listed)} currently listed on the in-game market.`}}));
   const map=new Map(state.cards.map(card=>[card.key,enrichedCard(card)]));slides.push(...state.runSheet.map(key=>{const card=map.get(key);return card?{kicker:`Card deep dive · ${card.set} · ${card.foil}`,title:card.name,value:money(card.price),comparison:`${Number.isFinite(card.priceChange)?signed(card.priceChange,'%'):'No prior price'} · ${number(card.supply)} listed`,notes:state.notes[key]||'Add a talking point in Producer view before recording.'}:null}).filter(Boolean));return slides;
 }

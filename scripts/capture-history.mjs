@@ -3,9 +3,12 @@ import path from 'node:path';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const ENDPOINTS = {
-  supply: 'https://splinterlands-validator-api.splinterlands.com/extensions/tokens/SPS/supply',
   packs: 'https://vapi.splinterlands.com/market/landing',
   market: 'https://api.splinterlands.com/market/for_sale_grouped',
+  prices: 'https://prices.splinterlands.com/prices',
+  vouchers: 'https://api.splinterlands.com/players/richlist?token_type=VOUCHER',
+  burnModern: 'https://api.splinterlands.com/players/burn_rewards_leaderboard?type=modern',
+  burnWild: 'https://api.splinterlands.com/players/burn_rewards_leaderboard?type=wild',
 };
 
 async function fetchJson(url) {
@@ -14,9 +17,17 @@ async function fetchJson(url) {
   return response.json();
 }
 
-const [supply, packPayload, market] = await Promise.all([
-  fetchJson(ENDPOINTS.supply), fetchJson(ENDPOINTS.packs), fetchJson(ENDPOINTS.market),
+const [packPayload, market, prices, vouchers, burnModern, burnWild] = await Promise.all([
+  fetchJson(ENDPOINTS.packs), fetchJson(ENDPOINTS.market), fetchJson(ENDPOINTS.prices),
+  fetchJson(ENDPOINTS.vouchers), fetchJson(ENDPOINTS.burnModern), fetchJson(ENDPOINTS.burnWild),
 ]);
+
+const nullVoucherBalance = Number(vouchers?.richlist?.find(row => row.player === 'null')?.balance || 0);
+const economy = {
+  spsPrice: Number(prices.sps), voucherPrice: Number(prices.voucher), decPrice: Number(prices.dec),
+  totalVouchers: Number(vouchers.total_quantity) - nullVoucherBalance,
+  burnModern: Number(burnModern?.totals?.total_sps_burned), burnWild: Number(burnWild?.totals?.total_sps_burned),
+};
 
 const packs = {};
 for (const item of packPayload?.data?.assets ?? []) {
@@ -40,7 +51,7 @@ for (const row of Array.isArray(market) ? market : []) {
 
 const now = new Date();
 const date = now.toISOString().slice(0, 10);
-const snapshot = { date, capturedAt: now.getTime(), s: Number(supply.burned), p: packs, c: cards };
+const snapshot = { date, capturedAt: now.getTime(), e: economy, p: packs, c: cards };
 const dataDir = path.join(ROOT, 'data');
 const snapshotDir = path.join(dataDir, 'snapshots');
 await fs.mkdir(snapshotDir, { recursive: true });
@@ -50,5 +61,5 @@ let index = [];
 try { index = JSON.parse(await fs.readFile(path.join(dataDir, 'index.json'), 'utf8')); } catch {}
 index = [...new Set([...index, date])].sort();
 await fs.writeFile(path.join(dataDir, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);
-console.log(`Captured ${date}: ${Object.keys(packs).length} packs and ${Object.keys(cards).length} card groups.`);
+console.log(`Captured ${date}: token economy, ${Object.keys(packs).length} packs and ${Object.keys(cards).length} card groups.`);
 

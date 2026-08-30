@@ -1,0 +1,103 @@
+.economy-grid {
+  grid-template-columns: 1.45fr 1fr .8fr;
+}
+
+.glint-burn-card {
+  min-height: 190px;
+}
+
+.glint-burn-card strong {
+  margin-bottom: 15px;
+}
+
+.burn-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.burn-split span {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  border: 1px solid #51351f;
+  background: #0d121780;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.burn-split b {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+}
+
+.burn-split em {
+  color: #ffd0a1;
+  font: 500 10px var(--mono);
+  font-style: normal;
+}
+
+.glint-burn-card small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.token-panel {
+  margin-top: 14px;
+}
+
+.token-table {
+  min-width: 620px;
+}
+
+.token-row {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr 1fr;
+  align-items: center;
+  min-height: 54px;
+  padding: 0 24px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 11px;
+}
+
+.token-row:first-child {
+  border-top: 0;
+}
+
+.token-name strong {
+  display: block;
+  font-size: 11px;
+}
+
+.token-name small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted-2);
+  font-size: 8px;
+}
+
+@media (max-width: 1080px) {
+  .economy-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .glint-burn-card {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .economy-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .glint-burn-card {
+    grid-column: auto;
+  }
+}
+
