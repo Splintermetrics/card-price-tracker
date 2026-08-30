@@ -1,0 +1,145 @@
+.band-panel {
+  margin-bottom: 14px;
+}
+
+.band-title {
+  align-items: center;
+}
+
+.band-set-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted-2);
+  font: 8px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+
+.band-set-picker select {
+  min-width: 180px;
+  height: 36px;
+  border: 1px solid var(--line);
+  background: #0c1116;
+  color: #d8dcde;
+  border-radius: 8px;
+  padding: 0 10px;
+  outline: 0;
+  font: 10px var(--sans);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.band-set-picker select:focus {
+  border-color: #63d7cf66;
+  box-shadow: 0 0 0 3px #63d7cf10;
+}
+
+.band-context {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--muted-2);
+  font-size: 9px;
+}
+
+.band-context p {
+  margin: 0;
+}
+
+.band-context span {
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.band-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+}
+
+.band-table th,
+.band-table td {
+  padding: 11px 14px;
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  text-align: right;
+}
+
+.band-table th:last-child,
+.band-table td:last-child {
+  border-right: 0;
+}
+
+.band-table tbody tr:last-child th,
+.band-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.band-table thead th {
+  background: #0d1217;
+  color: var(--muted-2);
+  font: 8px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+
+.band-table thead tr:first-child th:not(:first-child) {
+  color: #b8c2c8;
+  text-align: center;
+}
+
+.band-table tbody th {
+  text-align: left;
+  color: #d5dadd;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.band-price {
+  font: 10px var(--mono);
+  color: #d6dde0;
+}
+
+.band-price.low {
+  color: var(--cyan);
+}
+
+.band-price.high {
+  color: var(--orange-soft);
+}
+
+.band-price.empty {
+  color: #48535b;
+}
+
+.rarity-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 9px;
+  background: #6f7a82;
+}
+
+.rarity-common { background: #a7afb4; }
+.rarity-rare { background: #56a8e8; }
+.rarity-epic { background: #ba72e8; }
+.rarity-legendary { background: #f1a94e; }
+
+@media (max-width: 760px) {
+  .band-title,
+  .band-context {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .band-set-picker,
+  .band-set-picker select {
+    width: 100%;
+  }
+}
+
