@@ -19,6 +19,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./bands.css">
 </head>
 <body>
   <header class="topbar">
@@ -73,6 +74,15 @@
       </div>
 
       <div class="card-stats" id="cardStats"></div>
+
+      <div class="panel band-panel" aria-labelledby="bandsTitle">
+        <div class="panel-title band-title">
+          <div><p class="eyebrow cyan-text">Set price bands</p><h2 id="bandsTitle">Low and high by rarity &amp; foil</h2></div>
+          <label class="band-set-picker"><span>Set</span><select id="bandSetFilter" aria-label="Choose a set for the price-band table"></select></label>
+        </div>
+        <div class="band-context"><p>Each band uses the current floor price for every listed card in that set, rarity and foil.</p><span id="bandCount">— market groups</span></div>
+        <div class="table-scroll"><table class="band-table" id="bandTable" aria-label="Card price bands by rarity and foil"></table></div>
+      </div>
 
       <div class="workspace-grid">
         <div class="panel explorer-panel">
